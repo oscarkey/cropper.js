@@ -290,12 +290,12 @@
 			// return the cropped image
 			var cropCanvas = cropImage(!cropping); // cropping here controls if we get the entire image or not, desirable if the user is not cropping
 			var url = cropCanvas.toDataURL("png");
-            
-            // show the new image, only bother doing this if it isn't already displayed, ie, we are cropping
-            if(cropping) {
-                cropper.showImage(url);
-            }
-            
+			
+			// show the new image, only bother doing this if it isn't already displayed, ie, we are cropping
+			if(cropping) {
+		    	cropper.showImage(url);
+			}
+			
 			cropping = false;
 			return url;
 		} else {
@@ -308,12 +308,12 @@
 		if(image) {
 			// return the cropped image
 			var cropCanvas = cropImage(!cropping); // cropping here controls if we get the entire image or not, desirable if the user is not cropping
-            
-            // show the new image, only bother doing this if it isn't already displayed, ie, we are cropping
-            if(cropping) {
-                cropper.showImage(cropCanvas.toDataURL());
-            }
-            
+			
+			// show the new image, only bother doing this if it isn't already displayed, ie, we are cropping
+			if(cropping) {
+			    cropper.showImage(cropCanvas.toDataURL());
+			}
+			
 			cropping = false;
 			return cropCanvas.toBlob();
 		} else {
