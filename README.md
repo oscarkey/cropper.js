@@ -21,7 +21,8 @@ This will display the area selector thus allowing the user to select which bit o
 
 **cropper.getCroppedImageSrc()**  
 *returns*: the src (in data uri form) of the cropped image, false if there was no image present  
-This gets the data uri of the cropped image that the user has selected. It also displays this new cropped image in the canvas, replacing the existing image. The area selector is hidden.
+This gets the data uri of the cropped image that the user has selected. It also displays this new cropped image in the canvas, replacing the existing image. The area selector is hidden.  
+If no image has been selected/cropped, it returns the entire displayed image.
 
 **cropper.start(canvas, ratio)**  
 *canvas*: a canvas object to display the cropper in  
