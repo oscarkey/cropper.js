@@ -210,42 +210,51 @@
 	}
 	
 	
-	/* CROPPING FUNCTIONS */
-	var cropCanvas;
-	var cropContext;
-	
-	function cropImage() {
-		// if we don't have an image file or aren't cropper, abort at this point
-		if(image === undefined || !cropping) {
-			return;
+	/* CROPPING FUNCTIONS */	
+	function cropImage(entire) {
+		// if we don't have an image file, abort at this point
+		if(image === undefined) {
+			return false;
 		}
 		
-		// work out the actual dimensions that need cropping
-		var factor = currentDimens.factor;
-		var x = Math.floor(overlay.x / factor);
-		var y = Math.floor(overlay.y / factor);
-		var width = Math.floor(overlay.width / factor);
-		var height = Math.floor(overlay.height / factor);
+		// if we aren't cropping, ensure entire is tru
+		if(!cropping) {
+			entire = true;
+		}
 		
-		// check the values are within range of the image
-		if(x < 0){ x = 0; }
-		if(x > image.width){ x = image.width; }
-		if(y < 0){ y = 0; }
-		if(y > image.height){ y = image.height; }
+		// assume we want to crop the entire image, this will be overriden below
+		var x = 0;
+		var y = 0;
+		var width = image.width;
+		var height = image.height;
 		
-		if(x + width > image.width){ width = image.width - x; }
-		if(y + height > image.height){ height = image.height - y; }
+		if(!entire) {
+			// work out the actual dimensions that need cropping
+			var factor = currentDimens.factor;
+			x = Math.floor(overlay.x / factor);
+			y = Math.floor(overlay.y / factor);
+			width = Math.floor(overlay.width / factor);
+			height = Math.floor(overlay.height / factor);
+			
+			// check the values are within range of the image
+			if(x < 0){ x = 0; }
+			if(x > image.width){ x = image.width; }
+			if(y < 0){ y = 0; }
+			if(y > image.height){ y = image.height; }
+			
+			if(x + width > image.width){ width = image.width - x; }
+			if(y + height > image.height){ height = image.height - y; }
+		}
 		
 		// load the image into the cropping canvas
-		cropCanvas = document.createElement("canvas");
+		var cropCanvas = document.createElement("canvas");
 		cropCanvas.setAttribute("width", width);
 		cropCanvas.setAttribute("height", height);
 		
-		cropContext = cropCanvas.getContext("2d");
+		var cropContext = cropCanvas.getContext("2d");
 		cropContext.drawImage(image, x, y, width, height, 0, 0, width, height);
 		
-		// return the src of the image
-		return cropCanvas.toDataURL(); 
+		return cropCanvas;
 	}
 	
 	
@@ -277,15 +286,26 @@
 	};
 	
 	cropper.getCroppedImageSrc = function() {
-		if(cropping) {
+		if(image) {
 			// return the cropped image
-			var src = cropImage();
+			var cropCanvas = cropImage(!cropping); // cropping here controls if we get the entire image or not, desirable if the user is not cropping
+			var url = cropCanvas.toDataURL("png");
 			cropping = false;
-			cropper.showImage(src);
-			return src;
-		} else if(image) {
-			// return the source image
-			return image.src;
+			cropper.showImage(url);
+			return url;
+		} else {
+			return false;
+		}
+	};
+	
+	cropper.getCroppedImageBlob = function() {
+		return; // this function is not fully implemented yet
+		if(image) {
+			// return the cropped image
+			var cropCanvas = cropImage(!cropping); // cropping here controls if we get the entire image or not, desirable if the user is not cropping
+			cropping = false;
+			cropper.showImage(cropCanvas.toDataURL());
+			return cropCanvas.toBlob();
 		} else {
 			return false;
 		}
