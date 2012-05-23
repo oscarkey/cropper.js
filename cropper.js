@@ -257,6 +257,37 @@
 		return cropCanvas;
 	}
 	
+	/* function borrowed from http://stackoverflow.com/a/7261048/425197 */
+	function dataUrlToBlob(dataURI) {
+		// convert base64 to raw binary data held in a string
+		var byteString = atob(dataURI.split(',')[1]);
+		
+		// separate out the mime component
+		var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0]
+		
+		// write the bytes of the string to an ArrayBuffer
+		var ab = new ArrayBuffer(byteString.length);
+		var ia = new Uint8Array(ab);
+		for (var i = 0; i < byteString.length; i++) {
+		    ia[i] = byteString.charCodeAt(i);
+		}
+		
+		// write the ArrayBuffer to a blob, and you're done
+		var bb;
+		if(WebKitBlobBuilder) {
+			bb = new WebKitBlobBuilder();
+		} else if(MozBlobBuilder) {
+			bb = new MozBlobBuilder();
+		} else if(BlobBuilder) {
+			bb = new BlobBuilder();
+		} else {
+			// the support we require is not present
+			return false;
+		}
+		
+		bb.append(ab);
+		return bb.getBlob(mimeString);
+	}
 	
 	/* API FUNCTIONS */
 	cropper.showImage = function(src) {
@@ -304,18 +335,20 @@
 	};
 	
 	cropper.getCroppedImageBlob = function() {
-		return; // this function is not fully implemented yet
 		if(image) {
 			// return the cropped image
 			var cropCanvas = cropImage(!cropping); // cropping here controls if we get the entire image or not, desirable if the user is not cropping
+			var url = cropCanvas.toDataURL("png");
 			
 			// show the new image, only bother doing this if it isn't already displayed, ie, we are cropping
 			if(cropping) {
-				cropper.showImage(cropCanvas.toDataURL());
+				cropper.showImage(url);
 			}
 			
 			cropping = false;
-			return cropCanvas.toBlob();
+			
+			// convert the url to a blob and return it
+			return dataUrlToBlob(url);
 		} else {
 			return false;
 		}
