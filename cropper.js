@@ -293,7 +293,7 @@
 			
 			// show the new image, only bother doing this if it isn't already displayed, ie, we are cropping
 			if(cropping) {
-		    	cropper.showImage(url);
+				cropper.showImage(url);
 			}
 			
 			cropping = false;
@@ -311,7 +311,7 @@
 			
 			// show the new image, only bother doing this if it isn't already displayed, ie, we are cropping
 			if(cropping) {
-			    cropper.showImage(cropCanvas.toDataURL());
+				cropper.showImage(cropCanvas.toDataURL());
 			}
 			
 			cropping = false;
