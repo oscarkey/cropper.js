@@ -149,10 +149,8 @@
 		// add mouse listeners to the canvas
 		canvas.onmousedown = function(event) {
 			// depending on where the mouse has clicked, choose which type of event to fire
-			//var x = event.offsetX;
-			//var y = event.offsetY;
-			var x = event.clientX - canvas.offsetLeft;
-			var y = event.clientY - canvas.offsetTop;
+			var x = event.layerX;
+			var y = event.layerY;
 			
 			// if the mouse clicked in the overlay
 			if(x > overlay.x && x < (overlay.x + overlay.width) && y > overlay.y && y < (overlay.y + overlay.height)) {
@@ -187,8 +185,8 @@
 				return;
 			}
 			
-			var x = event.clientX - canvas.offsetLeft;
-			var y = event.clientY - canvas.offsetTop;
+			var x = event.layerX;
+			var y = event.layerY;
 			
 			// check what type of drag to do
 			if(drag.type === "moveOverlay") {
