@@ -149,8 +149,9 @@
 		// add mouse listeners to the canvas
 		canvas.onmousedown = function(event) {
 			// depending on where the mouse has clicked, choose which type of event to fire
-			var x = event.layerX;
-			var y = event.layerY;
+			var coords = canvas.getMouseCoords(event);
+			var x = coords.x;
+			var y = coords.y;
 			
 			// if the mouse clicked in the overlay
 			if(x > overlay.x && x < (overlay.x + overlay.width) && y > overlay.y && y < (overlay.y + overlay.height)) {
@@ -185,8 +186,9 @@
 				return;
 			}
 			
-			var x = event.layerX;
-			var y = event.layerY;
+			var coords = canvas.getMouseCoords(event);
+			var x = coords.x;
+			var y = coords.y;
 			
 			// check what type of drag to do
 			if(drag.type === "moveOverlay") {
@@ -380,5 +382,27 @@
 		cropper.showImage(restoreImage.src);
 		return true;
 	};
+	
+	
+	/* modify the canvas prototype to allow us to get x and y mouse coords from it */
+	HTMLCanvasElement.prototype.getMouseCoords = function(event){
+		// loop through this element and all its parents to get the total offset
+		var totalOffsetX = 0;
+		var totalOffsetY = 0;
+		var canvasX = 0;
+		var canvasY = 0;
+		var currentElement = this;
+
+		do {
+			totalOffsetX += currentElement.offsetLeft;
+			totalOffsetY += currentElement.offsetTop;
+		}
+		while(currentElement = currentElement.offsetParent)
+
+		canvasX = event.pageX - totalOffsetX;
+		canvasY = event.pageY - totalOffsetY;
+
+		return {x:canvasX, y:canvasY}
+	}
 	
 }(window.cropper = window.cropper || {}));
