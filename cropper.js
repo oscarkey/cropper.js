@@ -288,20 +288,7 @@
 		}
 
 		// write the ArrayBuffer to a blob, and you're done
-		var bb;
-		if(WebKitBlobBuilder) {
-			bb = new WebKitBlobBuilder();
-		} else if(MozBlobBuilder) {
-			bb = new MozBlobBuilder();
-		} else if(BlobBuilder) {
-			bb = new BlobBuilder();
-		} else {
-			// the support we require is not present
-			return false;
-		}
-
-		bb.append(ab);
-		return bb.getBlob(mimeString);
+		return new Blob([ia], {type: mimeString});
 	}
 
 	/* API FUNCTIONS */
