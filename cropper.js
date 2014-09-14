@@ -211,6 +211,23 @@
 			if(drag.type === "moveOverlay") {
 				overlay.x = x - drag.originalOverlayX;
 				overlay.y = y - drag.originalOverlayY;
+
+				// Limit to size of canvas.
+				var xMax = canvas.width - overlay.width;
+				var yMax = canvas.height - overlay.height;
+
+				if(overlay.x < 0) {
+					overlay.x = 0;
+				} else if(overlay.x > xMax) {
+					overlay.x = xMax;
+				}
+
+				if(overlay.y < 0) {
+					overlay.y = 0;
+				} else if(overlay.y > yMax) {
+					overlay.y = yMax;
+				}
+
 				draw();
 			} else if(drag.type === "resizeOverlay") {
 				overlay.width = drag.originalOverlayWidth + (x - drag.originalX);
@@ -220,7 +237,18 @@
 					overlay.width = 10;
 				}
 
+				// Don't allow crop to overflow
+				if(overlay.x + overlay.width > canvas.width) {
+					overlay.width = canvas.width - overlay.x;
+				}
+
 				overlay.height = overlay.width * overlay.ratioXY;
+
+				if(overlay.y + overlay.height > canvas.height) {
+					overlay.height = canvas.height - overlay.y;
+					overlay.width = overlay.height / overlay.ratioXY;
+				}
+
 				draw();
 			}
 		};
