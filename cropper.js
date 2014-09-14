@@ -34,7 +34,7 @@
 	var colors = {
 		white: "#ffffff",
 		black: "#000000",
-		overlay: "rgba(0, 0, 0, 0.75)"
+		overlay: "rgba(0, 0, 0, 0.6)"
 	};
 
 	var overlay = {
@@ -66,9 +66,16 @@
 			drawOverlay();
 
 			// draw the resizer
+			var x = overlay.x + overlay.width - 5,
+				y = overlay.y + overlay.height - 5,
+				w = overlay.resizerSide,
+				h = overlay.resizerSide;
+
 			context.save();
 			context.fillStyle = colors.black;
-			context.fillRect(overlay.x + overlay.width - 5, overlay.y + overlay.height - 5, overlay.resizerSide, overlay.resizerSide);
+			context.strokeStyle = colors.white;
+			context.fillRect(x, y, w, h);
+			context.strokeRect(x, y, w, h);
 			context.restore();
 		}
 	}
