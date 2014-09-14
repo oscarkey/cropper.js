@@ -196,14 +196,23 @@
 		};
 
 		canvas.onmousemove = function(event) {
+			var coords = canvas.getMouseCoords(event);
+			var x = coords.x;
+			var y = coords.y;
+
+			// Set current cursor as appropriate
+			if(isInHandle(x, y) || (drag.inProgress && drag.type === "resizeOverlay")) {
+				canvas.style.cursor = 'nwse-resize'
+			} else if(isInOverlay(x, y)) {
+				canvas.style.cursor = 'move'
+			} else {
+				canvas.style.cursor = 'auto'
+			}
+
 			// give up if there is no drag in progress
 			if(!drag.inProgress) {
 				return;
 			}
-
-			var coords = canvas.getMouseCoords(event);
-			var x = coords.x;
-			var y = coords.y;
 
 			// check what type of drag to do
 			if(drag.type === "moveOverlay") {
