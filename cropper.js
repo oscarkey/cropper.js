@@ -131,6 +131,14 @@
 		return dimens;
 	}
 
+	function isInOverlay(x, y) {
+		return x > overlay.x && x < (overlay.x + overlay.width) && y > overlay.y && y < (overlay.y + overlay.height);
+	}
+
+	function isInHandle(x, y) {
+		return x > (overlay.x + overlay.width - overlay.resizerSide) && x < (overlay.x + overlay.width + overlay.resizerSide) && y > (overlay.y + overlay.height - overlay.resizerSide) && y < (overlay.y + overlay.height + overlay.resizerSide);
+	}
+
 
 
 	/* EVENT LISTENER STUFF */
@@ -154,13 +162,13 @@
 			var y = coords.y;
 
 			// if the mouse clicked in the overlay
-			if(x > overlay.x && x < (overlay.x + overlay.width) && y > overlay.y && y < (overlay.y + overlay.height)) {
+			if(isInOverlay(x, y)) {
 				drag.type = "moveOverlay";
 				drag.inProgress = true;
 				drag.originalOverlayX = x - overlay.x;
 				drag.originalOverlayY = y - overlay.y;
 			}
-			if(x > (overlay.x + overlay.width - overlay.resizerSide) && x < (overlay.x + overlay.width + overlay.resizerSide) && y > (overlay.y + overlay.height - overlay.resizerSide) && y < (overlay.y + overlay.height + overlay.resizerSide)) {
+			if(isInHandle(x, y)) {
 				drag.type = "resizeOverlay";
 				drag.inProgress = true;
 				drag.originalX = x;
