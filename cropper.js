@@ -336,11 +336,11 @@
 		}
 	};
 
-	cropper.getCroppedImageBlob = function() {
+	cropper.getCroppedImageBlob = function(type) {
 		if(image) {
 			// return the cropped image
 			var cropCanvas = cropImage(!cropping); // cropping here controls if we get the entire image or not, desirable if the user is not cropping
-			var url = cropCanvas.toDataURL("png");
+			var url = cropCanvas.toDataURL(type || "png");
 
 			// show the new image, only bother doing this if it isn't already displayed, ie, we are cropping
 			if(cropping) {
