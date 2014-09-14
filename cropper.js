@@ -37,14 +37,7 @@
 		overlay: "rgba(0, 0, 0, 0.6)"
 	};
 
-	var overlay = {
-		x: 50,
-		y: 50,
-		width: 100,
-		height: 100,
-		resizerSide: 10,
-		ratioXY: 1
-	};
+	var overlay;
 
 	function draw() {
 		// clear the screen by drawing a white box
@@ -372,6 +365,16 @@
 			return; // give up
 		}
 		context = canvas.getContext("2d");
+
+		// Set default overlay position
+		overlay = {
+			x: 50,
+			y: 50,
+			width: 100,
+			height: 100,
+			resizerSide: 10,
+			ratioXY: 1
+		}
 
 		// set up the overlay ratio
 		if(ratio) {
