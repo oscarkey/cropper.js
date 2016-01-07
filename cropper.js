@@ -40,9 +40,8 @@
 	var overlay;
 
 	function draw() {
-		// clear the screen by drawing a white box
-		context.fillStyle = colors.white;
-		context.fillRect(0, 0, canvas.width, canvas.height);
+		// clear the canvas
+		context.clearRect(0, 0, canvas.width, canvas.height);
 
 		// if we don't have an image file, abort the draw at this point
 		if(image === undefined) {
