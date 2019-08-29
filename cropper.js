@@ -130,6 +130,25 @@
 		return dimens;
 	}
 
+	function getTouchPos(touchEvent) {
+		var rect = canvas.getBoundingClientRect();
+
+		return {
+			x: touchEvent.touches[0].clientX - rect.left,
+			y: touchEvent.touches[0].clientY - rect.top
+		};
+	}
+	/**
+	 * @param {Number} x position mouse / touch client event
+	 * @param {Number} y position mouse / touch client event
+	 */
+	function getClickPos({x, y}) {
+		return {
+			x : x - window.scrollX,
+			y : y - window.scrollY
+		}	
+	}
+
 	function isInOverlay(x, y) {
 		return x > overlay.x && x < (overlay.x + overlay.width) && y > overlay.y && y < (overlay.y + overlay.height);
 	}
@@ -137,8 +156,6 @@
 	function isInHandle(x, y) {
 		return x > (overlay.x + overlay.width - overlay.resizerSide) && x < (overlay.x + overlay.width + overlay.resizerSide) && y > (overlay.y + overlay.height - overlay.resizerSide) && y < (overlay.y + overlay.height + overlay.resizerSide);
 	}
-
-
 
 	/* EVENT LISTENER STUFF */
 	var drag = {
@@ -152,29 +169,102 @@
 		originalOverlayHeight: 0
 	};
 
+	/**
+	 * @param {Number} x position mouse / touch client event
+	 * @param {Number} y position mouse / touch client event
+	 */
+	function initialCropOrMoveEvent({x, y}) {
+		// if the mouse clicked in the overlay	
+		if(isInOverlay(x, y)) {
+			drag.type = "moveOverlay";
+			drag.inProgress = true;
+			drag.originalOverlayX = x - overlay.x;
+			drag.originalOverlayY = y - overlay.y;
+		}
+		
+		if(isInHandle(x, y)) {
+			drag.type = "resizeOverlay";
+			drag.inProgress = true;
+			drag.originalX = x;
+			drag.originalY = y;
+			drag.originalOverlayWidth = overlay.width;
+			drag.originalOverlayHeight = overlay.height;
+		}
+	}
+
+	/**
+	 * @param {Number} x horizontal position mouse or touch event
+	 * @param {Number} y vertical position mour or touch event
+	 * @description this function will be crop image inside canvas
+	 */
+	function startCropOrMoveEvent({x, y}) {
+
+		// Set current cursor as appropriate
+		if(isInHandle(x, y) || (drag.inProgress && drag.type === "resizeOverlay")) {
+			canvas.style.cursor = 'nwse-resize'
+		} else if(isInOverlay(x, y)) {
+			canvas.style.cursor = 'move'
+		} else {
+			canvas.style.cursor = 'auto'
+		}
+
+		// give up if there is no drag in progress
+		if(!drag.inProgress) {
+			return;
+		}
+
+		// check what type of drag to do
+		if(drag.type === "moveOverlay") {
+			overlay.x = x - drag.originalOverlayX;
+			overlay.y = y - drag.originalOverlayY;
+
+			// Limit to size of canvas.
+			var xMax = canvas.width - overlay.width;
+			var yMax = canvas.height - overlay.height;
+
+			if(overlay.x < 0) {
+				overlay.x = 0;
+			} else if(overlay.x > xMax) {
+				overlay.x = xMax;
+			}
+
+			if(overlay.y < 0) {
+				overlay.y = 0;
+			} else if(overlay.y > yMax) {
+				overlay.y = yMax;
+			}
+
+			draw();
+		} else if(drag.type === "resizeOverlay") {
+			overlay.width = drag.originalOverlayWidth + (x - drag.originalX);
+
+			// do not allow the overlay to get too small
+			if(overlay.width < 10) {
+				overlay.width = 10;
+			}
+
+			// Don't allow crop to overflow
+			if(overlay.x + overlay.width > canvas.width) {
+				overlay.width = canvas.width - overlay.x;
+			}
+
+			overlay.height = overlay.width * overlay.ratioXY;
+
+			if(overlay.y + overlay.height > canvas.height) {
+				overlay.height = canvas.height - overlay.y;
+				overlay.width = overlay.height / overlay.ratioXY;
+			}
+
+			draw();
+		}
+	}	
+
 	function addEventListeners() {
 		// add mouse listeners to the canvas
 		canvas.onmousedown = function(event) {
 			// depending on where the mouse has clicked, choose which type of event to fire
 			var coords = canvas.getMouseCoords(event);
-			var x = coords.x;
-			var y = coords.y;
-
-			// if the mouse clicked in the overlay
-			if(isInOverlay(x, y)) {
-				drag.type = "moveOverlay";
-				drag.inProgress = true;
-				drag.originalOverlayX = x - overlay.x;
-				drag.originalOverlayY = y - overlay.y;
-			}
-			if(isInHandle(x, y)) {
-				drag.type = "resizeOverlay";
-				drag.inProgress = true;
-				drag.originalX = x;
-				drag.originalY = y;
-				drag.originalOverlayWidth = overlay.width;
-				drag.originalOverlayHeight = overlay.height;
-			}
+			initialCropOrMoveEvent(getClickPos(coords));
 		};
 
 		canvas.onmouseup = function(event) {
@@ -189,68 +279,21 @@
 
 		canvas.onmousemove = function(event) {
 			var coords = canvas.getMouseCoords(event);
-			var x = coords.x;
-			var y = coords.y;
 
-			// Set current cursor as appropriate
-			if(isInHandle(x, y) || (drag.inProgress && drag.type === "resizeOverlay")) {
-				canvas.style.cursor = 'nwse-resize'
-			} else if(isInOverlay(x, y)) {
-				canvas.style.cursor = 'move'
-			} else {
-				canvas.style.cursor = 'auto'
-			}
-
-			// give up if there is no drag in progress
-			if(!drag.inProgress) {
-				return;
-			}
-
-			// check what type of drag to do
-			if(drag.type === "moveOverlay") {
-				overlay.x = x - drag.originalOverlayX;
-				overlay.y = y - drag.originalOverlayY;
-
-				// Limit to size of canvas.
-				var xMax = canvas.width - overlay.width;
-				var yMax = canvas.height - overlay.height;
-
-				if(overlay.x < 0) {
-					overlay.x = 0;
-				} else if(overlay.x > xMax) {
-					overlay.x = xMax;
-				}
-
-				if(overlay.y < 0) {
-					overlay.y = 0;
-				} else if(overlay.y > yMax) {
-					overlay.y = yMax;
-				}
-
-				draw();
-			} else if(drag.type === "resizeOverlay") {
-				overlay.width = drag.originalOverlayWidth + (x - drag.originalX);
-
-				// do not allow the overlay to get too small
-				if(overlay.width < 10) {
-					overlay.width = 10;
-				}
-
-				// Don't allow crop to overflow
-				if(overlay.x + overlay.width > canvas.width) {
-					overlay.width = canvas.width - overlay.x;
-				}
-
-				overlay.height = overlay.width * overlay.ratioXY;
-
-				if(overlay.y + overlay.height > canvas.height) {
-					overlay.height = canvas.height - overlay.y;
-					overlay.width = overlay.height / overlay.ratioXY;
-				}
-
-				draw();
-			}
+			startCropOrMoveEvent(getClickPos(coords));
 		};
+
+		canvas.addEventListener('touchstart', event => {
+			initialCropOrMoveEvent(getTouchPos(event));
+		});
+
+		canvas.addEventListener('touchmove', event => {
+			startCropOrMoveEvent(getTouchPos(event));
+		});
+
+		canvas.addEventListener('touchend', event => {
+			drag.inProgress = false;
+		})
 	}
 
 
