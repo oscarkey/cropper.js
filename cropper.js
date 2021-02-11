@@ -484,7 +484,7 @@
 		while(currentElement = currentElement.offsetParent)
 
 		canvasX = event.pageX - totalOffsetX;
-		canvasY = event.pageY - totalOffsetY;
+		canvasY = event.pageY - totalOffsetY + window.scrollY;
 
 		return {x:canvasX, y:canvasY}
 	}
