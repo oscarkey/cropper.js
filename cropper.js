@@ -19,109 +19,190 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-(function(cropper, undefined) {
-	"use strict"; // helps us catch otherwise tricky bugs
+const COLORS = {
+	white: "#ffffff",
+	black: "#000000",
+	overlay: "rgba(0, 0, 0, 0.6)"
+};
 
-	/* DRAWING STUFF */
-	var canvas;
-	var context;
+HTMLCanvasElement.prototype.getMouseCoords = function(event){
+	// loop through this element and all its parents to get the total offset
+	let totalOffsetX = 0;
+	let totalOffsetY = 0;
+	let canvasX = 0;
+	let canvasY = 0;
+	let currentElement = this;
 
-	var image;
-	var restoreImage;
-	var currentDimens = {};
-	var cropping = false;
+	do {
+		totalOffsetX += currentElement.offsetLeft;
+		totalOffsetY += currentElement.offsetTop;
+	}
+	while(currentElement = currentElement.offsetParent)
 
-	var colors = {
-		white: "#ffffff",
-		black: "#000000",
-		overlay: "rgba(0, 0, 0, 0.6)"
+	canvasX = event.pageX - totalOffsetX;
+	canvasY = event.pageY - totalOffsetY + window.scrollY;
+
+
+	return {x:canvasX, y:canvasY}
+}
+
+
+class Canvas
+{
+	constructor(element, ratioX, ratioY)
+	{
+		this.element = element;
+		this.image = undefined;
+		this.restoreImage = undefined;
+		this.cropping = false;
+		this.context = this.element.getContext("2d");
+		this.currentDimens = {};
+		this.ratioX = ratioX || 1;
+		this.ratioY = ratioY || 1;
+
+		this.overlay =
+		{
+			x: 50,
+			y: 50,
+			width: this.element.width * 0.6 * Math.min(1, this.ratioX / this.ratioY),
+			height: this.element.height * 0.6 * Math.min(1, this.ratioY / this.ratioX),
+			resizerSide: 10,
+			ratioXY: this.ratioY / this.ratioX
+		};
+
+		this.drag = {
+			type: "", // options: "moveOverlay", "resizeOverlay"
+			inProgress: false,
+			originalOverlayX: 0,
+			originalOverlayY: 0,
+			originalX: 0,
+			originalY: 0,
+			originalOverlayWidth: 0,
+			originalOverlayHeight: 0
+		};
+
 	};
 
-	var overlay;
+	startCropping() {
+		// only continue if an image is loaded
+		if(this.image === undefined) {
+			return false;
+		}
 
-	function draw() {
+		// save the current state
+		this.restoreImage = new Image();
+		this.restoreImage.src = this.image.src;
+
+		this.cropping = true;
+		this.draw();
+
+		return true;
+	};
+
+
+	start(ratio)
+	{
+		if (!this.element.getContext)
+		{
+			return;
+		}
+
+		this.context = this.element.getContext("2d");
+
+		// set up the overlay ratio
+		if(this.ratio) {
+			this.setRatio(ratio);
+		}
+
+		// setup mouse stuff
+		this.addEventListeners();
+
+	};
+
+
+	// Set default overlay position
+	// set up the overlay ratio
+
+
+	draw()
+	{
 		// clear the canvas
-		context.clearRect(0, 0, canvas.width, canvas.height);
+		this.context.clearRect(0, 0, this.element.width, this.element.height);
 
 		// if we don't have an image file, abort the draw at this point
-		if(image === undefined) {
+		if(this.image === undefined) {
 			return;
 		}
 
 		// draw the image
-		var dimens = currentDimens;
-		context.drawImage(image, 0, 0, dimens.width, dimens.height);
+		let dimens = this.currentDimens;
+		this.context.drawImage(this.image, 0, 0, dimens.width, dimens.height);
 
 		// draw cropping stuff if we are cropping
-		if(cropping) {
+		if(this.cropping) {
 			// draw the overlay
-			drawOverlay();
+			this.drawOverlay();
 
 			// draw the resizer
-			var x = overlay.x + overlay.width - 5,
-				y = overlay.y + overlay.height - 5,
-				w = overlay.resizerSide,
-				h = overlay.resizerSide;
+			let x = this.overlay.x + this.overlay.width - 5,
+			y = this.overlay.y + this.overlay.height - 5,
+			w = this.overlay.resizerSide,
+			h = this.overlay.resizerSide;
 
-			context.save();
-			context.fillStyle = colors.black;
-			context.strokeStyle = colors.white;
-			context.fillRect(x, y, w, h);
-			context.strokeRect(x, y, w, h);
-			context.restore();
+			this.context.save();
+			this.context.fillStyle = COLORS.black;
+			this.context.strokeStyle = COLORS.white;
+			this.context.fillRect(x, y, w, h);
+			this.context.strokeRect(x, y, w, h);
+			this.context.restore();
 		}
 	}
 
-	function drawOverlay() {
+	drawOverlay() {
 		// draw the overlay using a path made of 4 trapeziums (ahem)
-		context.save();
+		this.context.save();
 
-		context.fillStyle = colors.overlay;
-		context.beginPath();
+		this.context.fillStyle = COLORS.overlay;
+		this.context.beginPath();
+		this.context.moveTo(0, 0);
+		this.context.lineTo(this.overlay.x, this.overlay.y);
+		this.context.lineTo(this.overlay.x + this.overlay.width, this.overlay.y);
+		this.context.lineTo(this.element.width, 0);
+		this.context.moveTo(this.element.width, 0);
+		this.context.lineTo(this.overlay.x + this.overlay.width, this.overlay.y);
+		this.context.lineTo(this.overlay.x + this.overlay.width, this.overlay.y + this.overlay.height);
+		this.context.lineTo(this.element.width, this.element.height);
+		this.context.moveTo(this.element.width, this.element.height);
+		this.context.lineTo(this.overlay.x + this.overlay.width, this.overlay.y + this.overlay.height);
+		this.context.lineTo(this.overlay.x, this.overlay.y + this.overlay.height);
+		this.context.lineTo(0, this.element.height);
+		this.context.moveTo(0, this.element.height);
+		this.context.lineTo(this.overlay.x, this.overlay.y + this.overlay.height);
+		this.context.lineTo(this.overlay.x, this.overlay.y);
+		this.context.lineTo(0, 0);
 
-		context.moveTo(0, 0);
-		context.lineTo(overlay.x, overlay.y);
-		context.lineTo(overlay.x + overlay.width, overlay.y);
-		context.lineTo(canvas.width, 0);
-
-		context.moveTo(canvas.width, 0);
-		context.lineTo(overlay.x + overlay.width, overlay.y);
-		context.lineTo(overlay.x + overlay.width, overlay.y + overlay.height);
-		context.lineTo(canvas.width, canvas.height);
-
-		context.moveTo(canvas.width, canvas.height);
-		context.lineTo(overlay.x + overlay.width, overlay.y + overlay.height);
-		context.lineTo(overlay.x, overlay.y + overlay.height);
-		context.lineTo(0, canvas.height);
-
-		context.moveTo(0, canvas.height);
-		context.lineTo(overlay.x, overlay.y + overlay.height);
-		context.lineTo(overlay.x, overlay.y);
-		context.lineTo(0, 0);
-
-		context.fill();
-
-		context.restore();
+		this.context.fill();
+		this.context.restore();
 	}
 
-	function setRatio(ratio) {
-		overlay.ratioXY = ratio;
-		overlay.height = Math.floor(overlay.width * ratio);
+	setRatio(ratio) {
+		this.overlay.ratioXY = ratio;
+		this.overlay.height = Math.floor(this.overlay.width * ratio);
 	}
 
-	function getScaledImageDimensions(width, height) {
+	getScaledImageDimensions(width, height) {
 		// choose the dimension to scale to, depending on which is "more too big"
-		var factor = 1;
-		if((canvas.width - width) < (canvas.height - height)) {
+		let factor = 1;
+		if((this.element.width - width) < (this.element.height - height)) {
 			// scale to width
-			factor = canvas.width / width;
+			factor = this.element.width / width;
 		} else {
 			// scale to height
-			factor = canvas.height / height;
+			factor = this.element.height / height;
 		}
 		// important "if,else" not "if,if" otherwise 1:1 images don't scale
 
-		var dimens = {
+		let dimens = {
 			width: Math.floor(width * factor),
 			height: Math.floor(height * factor),
 			factor: factor
@@ -130,232 +211,211 @@
 		return dimens;
 	}
 
-	function getTouchPos(touchEvent) {
-		var rect = canvas.getBoundingClientRect();
+	getTouchPos(touchEvent) {
+		let rect = this.element.getBoundingClientRect();
 
 		return {
 			x: touchEvent.touches[0].clientX - rect.left,
 			y: touchEvent.touches[0].clientY - rect.top
 		};
 	}
+
 	/**
-	 * @param {Number} x position mouse / touch client event
-	 * @param {Number} y position mouse / touch client event
-	 */
-	function getClickPos({x, y}) {
+	* @param {Number} x position mouse / touch client event
+	* @param {Number} y position mouse / touch client event
+	*/
+	getClickPos({x, y}) {
 		return {
 			x : x - window.scrollX,
 			y : y - window.scrollY
-		}	
-	}
-
-	function isInOverlay(x, y) {
-		return x > overlay.x && x < (overlay.x + overlay.width) && y > overlay.y && y < (overlay.y + overlay.height);
-	}
-
-	function isInHandle(x, y) {
-		return x > (overlay.x + overlay.width - overlay.resizerSide) && x < (overlay.x + overlay.width + overlay.resizerSide) && y > (overlay.y + overlay.height - overlay.resizerSide) && y < (overlay.y + overlay.height + overlay.resizerSide);
-	}
-
-	/* EVENT LISTENER STUFF */
-	var drag = {
-		type: "", // options: "moveOverlay", "resizeOverlay"
-		inProgress: false,
-		originalOverlayX: 0,
-		originalOverlayY: 0,
-		originalX: 0,
-		originalY: 0,
-		originalOverlayWidth: 0,
-		originalOverlayHeight: 0
-	};
-
-	/**
-	 * @param {Number} x position mouse / touch client event
-	 * @param {Number} y position mouse / touch client event
-	 */
-	function initialCropOrMoveEvent({x, y}) {
-		// if the mouse clicked in the overlay	
-		if(isInOverlay(x, y)) {
-			drag.type = "moveOverlay";
-			drag.inProgress = true;
-			drag.originalOverlayX = x - overlay.x;
-			drag.originalOverlayY = y - overlay.y;
 		}
-		
-		if(isInHandle(x, y)) {
-			drag.type = "resizeOverlay";
-			drag.inProgress = true;
-			drag.originalX = x;
-			drag.originalY = y;
-			drag.originalOverlayWidth = overlay.width;
-			drag.originalOverlayHeight = overlay.height;
+	}
+	isInOverlay(x, y) {
+		return x > this.overlay.x && x < (this.overlay.x + this.overlay.width) && y > this.overlay.y && y < (this.overlay.y + this.overlay.height);
+	}
+
+	isInHandle(x, y) {
+		return x > (this.overlay.x + this.overlay.width - this.overlay.resizerSide) && x < (this.overlay.x + this.overlay.width + this.overlay.resizerSide) && y > (this.overlay.y + this.overlay.height - this.overlay.resizerSide) && y < (this.overlay.y + this.overlay.height + this.overlay.resizerSide);
+	}
+	initialCropOrMoveEvent({x, y}) {
+		// if the mouse clicked in the overlay
+		if(this.isInOverlay(x, y)) {
+			this.drag.type = "moveOverlay";
+			this.drag.inProgress = true;
+			this.drag.originalOverlayX = x - this.overlay.x;
+			this.drag.originalOverlayY = y - this.overlay.y;
+		}
+
+		if(this.isInHandle(x, y)) {
+			this.drag.type = "resizeOverlay";
+			this.drag.inProgress = true;
+			this.drag.originalX = x;
+			this.drag.originalY = y;
+			this.drag.originalOverlayWidth = this.overlay.width;
+			this.drag.originalOverlayHeight = this.overlay.height;
 		}
 	}
 
-	/**
-	 * @param {Number} x horizontal position mouse or touch event
-	 * @param {Number} y vertical position mour or touch event
-	 * @description this function will be crop image inside canvas
-	 */
-	function startCropOrMoveEvent({x, y}) {
+	startCropOrMoveEvent({x, y}) {
 
 		// Set current cursor as appropriate
-		if(isInHandle(x, y) || (drag.inProgress && drag.type === "resizeOverlay")) {
-			canvas.style.cursor = 'nwse-resize'
-		} else if(isInOverlay(x, y)) {
-			canvas.style.cursor = 'move'
+		if(this.isInHandle(x, y) || (this.drag.inProgress && this.drag.type === "resizeOverlay")) {
+			this.element.style.cursor = 'nwse-resize'
+		} else if(this.isInOverlay(x, y)) {
+			this.element.style.cursor = 'move'
 		} else {
-			canvas.style.cursor = 'auto'
+			this.element.style.cursor = 'auto'
 		}
 
 		// give up if there is no drag in progress
-		if(!drag.inProgress) {
+		if(!this.drag.inProgress) {
 			return;
 		}
 
 		// check what type of drag to do
-		if(drag.type === "moveOverlay") {
-			overlay.x = x - drag.originalOverlayX;
-			overlay.y = y - drag.originalOverlayY;
-
+		if(this.drag.type === "moveOverlay") {
+			this.overlay.x = x - this.drag.originalOverlayX;
+			this.overlay.y = y - this.drag.originalOverlayY;
 			// Limit to size of canvas.
-			var xMax = canvas.width - overlay.width;
-			var yMax = canvas.height - overlay.height;
+			let xMax = this.element.width - this.overlay.width;
+			let yMax = this.element.height - this.overlay.height;
 
-			if(overlay.x < 0) {
-				overlay.x = 0;
-			} else if(overlay.x > xMax) {
-				overlay.x = xMax;
+			if(this.overlay.x < 0) {
+				this.overlay.x = 0;
+			} else if(this.overlay.x > xMax) {
+				this.overlay.x = xMax;
 			}
 
-			if(overlay.y < 0) {
-				overlay.y = 0;
-			} else if(overlay.y > yMax) {
-				overlay.y = yMax;
+			if(this.overlay.y < 0) {
+				this.overlay.y = 0;
+			} else if(this.overlay.y > yMax) {
+				this.overlay.y = yMax;
 			}
 
-			draw();
-		} else if(drag.type === "resizeOverlay") {
-			overlay.width = drag.originalOverlayWidth + (x - drag.originalX);
+			this.draw();
+		} else if(this.drag.type === "resizeOverlay") {
+			this.overlay.width = this.drag.originalOverlayWidth + (x - this.drag.originalX);
 
 			// do not allow the overlay to get too small
-			if(overlay.width < 10) {
-				overlay.width = 10;
+			if(this.overlay.width < 10) {
+				this.overlay.width = 10;
 			}
 
 			// Don't allow crop to overflow
-			if(overlay.x + overlay.width > canvas.width) {
-				overlay.width = canvas.width - overlay.x;
+			if(this.overlay.x + this.overlay.width > this.element.width) {
+				this.overlay.width = this.element.width - this.overlay.x;
 			}
 
-			overlay.height = overlay.width * overlay.ratioXY;
+			this.overlay.height = this.overlay.width * this.overlay.ratioXY;
 
-			if(overlay.y + overlay.height > canvas.height) {
-				overlay.height = canvas.height - overlay.y;
-				overlay.width = overlay.height / overlay.ratioXY;
+			if(this.overlay.y + this.overlay.height > this.element.height) {
+				this.overlay.height = this.element.height - this.overlay.y;
+				this.overlay.width = this.overlay.height / this.overlay.ratioXY;
 			}
 
-			draw();
+			this.draw();
 		}
-	}	
+	}
 
-	function addEventListeners() {
+	 addEventListeners() {
 		// add mouse listeners to the canvas
-		canvas.onmousedown = function(event) {
+		this.element.addEventListener("mousedown", event => {
 			// depending on where the mouse has clicked, choose which type of event to fire
-			var coords = canvas.getMouseCoords(event);
-			initialCropOrMoveEvent(getClickPos(coords));
-		};
-
-		canvas.onmouseup = function(event) {
-			// cancel any drags
-			drag.inProgress = false;
-		};
-
-		canvas.onmouseout = function(event) {
-			// cancel any drags
-			drag.inProgress = false;
-		};
-
-		canvas.onmousemove = function(event) {
-			var coords = canvas.getMouseCoords(event);
-
-			startCropOrMoveEvent(getClickPos(coords));
-		};
-
-		canvas.addEventListener('touchstart', event => {
-			initialCropOrMoveEvent(getTouchPos(event));
+			let coords = this.element.getMouseCoords(event);
+			this.initialCropOrMoveEvent(this.getClickPos(coords));
 		});
 
-		canvas.addEventListener('touchmove', event => {
-			startCropOrMoveEvent(getTouchPos(event));
+		this.element.addEventListener("mouseup", event => {
+
+			// cancel any drags
+			this.drag.inProgress = false;
 		});
 
-		canvas.addEventListener('touchend', event => {
-			drag.inProgress = false;
+		this.element.addEventListener("mouseout", event => {
+
+			// cancel any drags
+			this.drag.inProgress = false;
+		});
+
+
+		this.element.addEventListener("mousemove", event => {
+
+			let coords = this.element.getMouseCoords(event);
+			this.startCropOrMoveEvent(this.getClickPos(coords));
+		})
+
+
+		this.element.addEventListener('touchstart', event => {
+			this.initialCropOrMoveEvent(this.getTouchPos(event));
+		});
+
+		this.element.addEventListener('touchmove', event => {
+			this.startCropOrMoveEvent(this.getTouchPos(event));
+		});
+
+		this.element.addEventListener('touchend', event => {
+			this.drag.inProgress = false;
 		})
 	}
 
-
 	/* CROPPING FUNCTIONS */
-	function cropImage(entire) {
+	cropImage(entire) {
 		// if we don't have an image file, abort at this point
-		if(image === undefined) {
+		if(this.image === undefined) {
 			return false;
 		}
 
 		// if we aren't cropping, ensure entire is tru
-		if(!cropping) {
+		if(!this.cropping) {
 			entire = true;
 		}
 
 		// assume we want to crop the entire image, this will be overriden below
-		var x = 0;
-		var y = 0;
-		var width = image.width;
-		var height = image.height;
+		let x = 0;
+		let y = 0;
+		let width = this.image.width;
+		let height = this.image.height;
 
 		if(!entire) {
 			// work out the actual dimensions that need cropping
-			var factor = currentDimens.factor;
-			x = Math.floor(overlay.x / factor);
-			y = Math.floor(overlay.y / factor);
-			width = Math.floor(overlay.width / factor);
-			height = Math.floor(overlay.height / factor);
+			let factor = this.currentDimens.factor;
+			x = Math.floor(this.overlay.x / factor);
+			y = Math.floor(this.overlay.y / factor);
+			width = Math.floor(this.overlay.width / factor);
+			height = Math.floor(this.overlay.height / factor);
 
 			// check the values are within range of the image
 			if(x < 0){ x = 0; }
-			if(x > image.width){ x = image.width; }
+			if(x > this.image.width){ x = this.image.width; }
 			if(y < 0){ y = 0; }
-			if(y > image.height){ y = image.height; }
+			if(y > this.image.height){ y = this.image.height; }
 
-			if(x + width > image.width){ width = image.width - x; }
-			if(y + height > image.height){ height = image.height - y; }
+			if(x + width > this.image.width){ width = this.image.width - x; }
+			if(y + height > this.image.height){ height = this.image.height - y; }
 		}
 
 		// load the image into the cropping canvas
-		var cropCanvas = document.createElement("canvas");
+		let cropCanvas = document.createElement("canvas");
 		cropCanvas.setAttribute("width", width);
 		cropCanvas.setAttribute("height", height);
 
-		var cropContext = cropCanvas.getContext("2d");
-		cropContext.drawImage(image, x, y, width, height, 0, 0, width, height);
+		let cropContext = cropCanvas.getContext("2d");
+		cropContext.drawImage(this.image, x, y, width, height, 0, 0, width, height);
 
 		return cropCanvas;
 	}
 
-	/* function borrowed from http://stackoverflow.com/a/7261048/425197 */
-	function dataUrlToBlob(dataURI) {
+	dataUrlToBlob(dataURI) {
 		// convert base64 to raw binary data held in a string
-		var byteString = atob(dataURI.split(',')[1]);
+		let byteString = atob(dataURI.split(',')[1]);
 
 		// separate out the mime component
-		var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+		let mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
 
 		// write the bytes of the string to an ArrayBuffer
-		var ab = new ArrayBuffer(byteString.length);
-		var ia = new Uint8Array(ab);
-		for (var i = 0; i < byteString.length; i++) {
+		let ab = new ArrayBuffer(byteString.length);
+		let ia = new Uint8Array(ab);
+		for (let i = 0; i < byteString.length; i++) {
 			ia[i] = byteString.charCodeAt(i);
 		}
 
@@ -363,63 +423,64 @@
 		return new Blob([ia], {type: mimeString});
 	}
 
-	/* API FUNCTIONS */
-	cropper.showImage = function(src) {
-		cropping = false;
-		image = new Image();
-		image.onload = function() {
-			currentDimens = getScaledImageDimensions(image.width, image.height) ; // work out the scaling
-			draw();
-		};
-		image.src = src;
+	showImage(src) {
+		this.cropping = false;
+		this.image = new Image();
+		this.image.addEventListener("load", () => {
+
+			this.currentDimens = this.getScaledImageDimensions(this.image.width, this.image.height) ; // work out the scaling
+			this.draw();
+		});
+
+		this.image.src = src;
 	};
 
-	cropper.startCropping = function() {
-		// only continue if an image is loaded
-		if(image === undefined) {
-			return false;
-		}
-
-		// save the current state
-		restoreImage = new Image();
-		restoreImage.src = image.src;
-
-		cropping = true;
-		draw();
-
-		return true;
-	};
-
-	cropper.getCroppedImageSrc = function() {
-		if(image) {
+	getCroppedImageSrc() {
+		if(this.image) {
 			// return the cropped image
-			var cropCanvas = cropImage(!cropping); // cropping here controls if we get the entire image or not, desirable if the user is not cropping
-			var url = cropCanvas.toDataURL("png");
+			let cropCanvas = this.cropImage(!this.cropping); // cropping here controls if we get the entire image or not, desirable if the user is not cropping
+			let url = cropCanvas.toDataURL("png");
+
+			let valueSize = (this.overlay.width * this.image.width / this.currentDimens.width);
+			let valueX = (this.overlay.x * this.image.width / this.currentDimens.width);
+			let valueY = (this.overlay.y * this.image.height / this.currentDimens.height);
+
+			console.log(valueSize);
+			console.log(valueX);
+			console.log(valueY);
+
+			const canvasDiv = this.element.parentElement;
+
+			// canvasDiv.querySelector(".size").value = Math.round(valueSize);
+			// canvasDiv.querySelector(".picture-x").value = Math.round(valueX);
+			// canvasDiv.querySelector(".picture-y").value = Math.round(valueY);
 
 			// show the new image, only bother doing this if it isn't already displayed, ie, we are cropping
-			if(cropping) {
-				cropper.showImage(url);
+			if(this.cropping) {
+				this.showImage(url);
 			}
 
-			cropping = false;
+			this.cropping = false;
 			return url;
 		} else {
 			return false;
 		}
 	};
 
-	cropper.getCroppedImageBlob = function(type) {
-		if(image) {
+
+
+	getCroppedImageBlob(type) {
+		if(this.image) {
 			// return the cropped image
-			var cropCanvas = cropImage(!cropping); // cropping here controls if we get the entire image or not, desirable if the user is not cropping
-			var url = cropCanvas.toDataURL(type || "png");
+			let cropCanvas = this.cropImage(!this.cropping); // cropping here controls if we get the entire image or not, desirable if the user is not cropping
+			let url = cropCanvas.toDataURL(type || "png");
 
 			// show the new image, only bother doing this if it isn't already displayed, ie, we are cropping
-			if(cropping) {
-				cropper.showImage(url);
+			if(this.cropping) {
+				this.showImage(url);
 			}
 
-			cropping = false;
+			this.cropping = false;
 
 			// convert the url to a blob and return it
 			return dataUrlToBlob(url);
@@ -428,65 +489,138 @@
 		}
 	};
 
-	cropper.start = function(newCanvas, ratio) {
-		// get the context from the given canvas
-		canvas = newCanvas;
-		if(!canvas.getContext) {
-			return; // give up
-		}
-		context = canvas.getContext("2d");
 
-		// Set default overlay position
-		overlay = {
-			x: 50,
-			y: 50,
-			width: 100,
-			height: 100,
-			resizerSide: 10,
-			ratioXY: 1
-		}
 
-		// set up the overlay ratio
-		if(ratio) {
-			setRatio(ratio);
-		}
-
-		// setup mouse stuff
-		addEventListeners();
-	};
-
-	cropper.restore = function() {
-		if(restoreImage === undefined) {
+	restore() {
+		if(this.restoreImage === undefined) {
 			return false;
 		}
 
-		cropping = false;
+		this.cropping = false;
 
 		// show the saved image
-		cropper.showImage(restoreImage.src);
+		this.showImage(this.restoreImage.src);
+		this.startCropping();
 		return true;
 	};
+}
 
 
-	/* modify the canvas prototype to allow us to get x and y mouse coords from it */
-	HTMLCanvasElement.prototype.getMouseCoords = function(event){
-		// loop through this element and all its parents to get the total offset
-		var totalOffsetX = 0;
-		var totalOffsetY = 0;
-		var canvasX = 0;
-		var canvasY = 0;
-		var currentElement = this;
+function main()
+{
+	const croppers = document.querySelectorAll('._cropper');
 
-		do {
-			totalOffsetX += currentElement.offsetLeft;
-			totalOffsetY += currentElement.offsetTop;
+
+	for (let i = 0; i < croppers.length; i++)
+	{
+		// Create the canvas element
+		const dimensions = window.getComputedStyle(croppers[i]);
+		const cropperHeight = (parseInt(dimensions.height) == 0) ? 600 : 0.7 * parseInt(dimensions.height);
+		const cropperWidth = (parseInt(dimensions.width) == 0) ? 600 : 0.7 * parseInt(dimensions.width);
+
+		const dimension = Math.max(100, Math.min(cropperHeight, cropperWidth));
+		const canvasElement = document.createElement('canvas');
+
+		const ratioX = croppers[i].dataset.ratiox || 1;
+		const ratioY = croppers[i].dataset.ratioy || 1;
+
+		canvasElement.width = dimension;
+		canvasElement.height = dimension;
+		canvasElement.style.border = '1px solid black';
+
+		const buttonContainer = document.createElement('div');
+
+
+		// Create the inputs
+		const crop = document.createElement('button');
+		const cropSpan = document.createElement('span');
+		const cropContent = document.createElement('span');
+
+		const restore = document.createElement('button');
+		const restoreSpan = document.createElement('span');
+		const restoreContent = document.createElement('span');
+
+		const input = document.createElement('input');
+		const label = document.createElement('label');
+		const labelContent = document.createElement('span');
+		const labelSpan = document.createElement('span');
+
+		// Input name
+		input.name = croppers[i].dataset.name || `croppedImage${i}`;
+		input.id = input.name;
+
+		// Adding types
+		crop.type = 'button';
+		restore.type = 'button';
+		input.type = 'file';
+		label.htmlFor = input.id;
+
+
+		// class names
+		cropSpan.className = 'material-icons';
+		restoreSpan.className = 'material-icons';
+		labelSpan.className = 'material-icons';
+
+		// Inner HTML
+		cropContent.innerHTML = 'Crop';
+		cropSpan.innerHTML = 'crop';
+
+
+		restoreContent.innerHTML = 'Restore';
+		restoreSpan.innerHTML = 'restore';
+
+		labelContent.innerHTML = 'Upload Image';
+		labelSpan.innerHTML = 'file_upload';
+
+
+		// Appending
+		label.append(labelSpan);
+		label.append(labelContent);
+
+		crop.append(cropSpan);
+		crop.append(cropContent);
+
+		restore.append(restoreSpan);
+		restore.append(restoreContent);
+
+		// Appending all the elements to the main div
+		croppers[i].append(canvasElement);
+		croppers[i].append(buttonContainer);
+
+		buttonContainer.append(input);
+		buttonContainer.append(label);
+		buttonContainer.append(crop);
+		buttonContainer.append(restore);
+
+
+		const canvas = new Canvas(canvasElement, ratioX, ratioY);
+		canvas.start(1);
+
+		// Input event Listeners
+		input.onchange = () => {
+			// this function will be called when the file input below is changed
+			let file = input.files[0];  // get a reference to the selected file
+
+			let reader = new FileReader(); // create a file reader
+			// set an onload function to show the image in cropper once it has been loaded
+			reader.onload = function(event) {
+				let data = event.target.result; // the "data url" of the image
+				canvas.showImage(data); // hand this to cropper, it will be displayed
+				canvas.startCropping();
+			};
+
+			reader.readAsDataURL(file); // this loads the file as a data url calling the function above once done
+
 		}
-		while(currentElement = currentElement.offsetParent)
 
-		canvasX = event.pageX - totalOffsetX;
-		canvasY = event.pageY - totalOffsetY + window.scrollY;
+		crop.onclick = () => {
+			canvas.getCroppedImageSrc();
+		}
 
-		return {x:canvasX, y:canvasY}
+		restore.onclick = () => {
+			canvas.restore();
+		}
 	}
+}
 
-}(window.cropper = window.cropper || {}));
+main();

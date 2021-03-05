@@ -1,0 +1,91 @@
+@import url(https://fonts.googleapis.com/icon?family=Material+Icons);
+
+._cropper
+{
+    display: flex;
+    flex-direction: column;
+    width: 600px;
+    height: 700px;
+    justify-content: space-around;
+
+}
+
+._cropper div
+{
+    display: flex;
+    justify-content: space-evenly;
+}
+
+
+._cropper canvas
+{
+    justify-self: start;
+    align-self: center;
+}
+
+
+._cropper input, label, button
+{
+    align-self: center;
+    outline: none;
+    text-align: center;
+}
+
+._cropper button
+{
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+}
+
+._cropper button span
+{
+    width: 50%;
+    text-align: left;
+    display: flex;
+    height: 100%;
+    align-items: center;
+}
+
+._cropper .material-icons
+{
+    width: 20%;
+    text-align: center;
+    transition: transform .2s ease;
+}
+
+._cropper input[type="file"]
+{
+    display: none;
+}
+
+._cropper button, label
+{
+
+    background: #30a2f0;
+    border: none;
+    border-radius: 100vw;
+    width: 30%;
+    height: 30px;
+    color: white;
+    text-transform: uppercase;
+    font-family: sans-serif;
+    font-weight: 900;
+    font-size: .8rem;
+    cursor: pointer;
+
+}
+
+label
+{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+._cropper button:hover .material-icons,
+._cropper label:hover .material-icons
+{
+    transform: translateY(-15%);
+}
