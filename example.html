@@ -4,13 +4,40 @@
 		<title>cropper.js example</title>
 		<!-- Import the library js file -->
 		<!-- You might want to use "cropper_jsmin.js" on an actual site -->
-		<script type="text/javascript" src="cropper.js" defer></script>
-		<link rel="stylesheet" href="css/default.css">
+		<!-- <link rel="stylesheet" href="css/default.css"> -->
+		<script type="text/javascript" src="cropper.js"></script>
 	</head>
 	<body>
 
-		<div class="_cropper" style="height: 400px; width: 700px;" data-ratiox="3" data-ratioy="4"></div>
-		<div class="_cropper" data-name="myInput"></div>
+		<canvas id="canvas" width="300" height="300" style="border: 1px solid black"></canvas>
+
+
+		<script type="text/javascript" >
+			const canvasElement = document.querySelector("#canvas");
+
+			const canvas = new Canvas({element: canvasElement, ratioY: 4, ratioX: 3});
+
+
+			function handleFileSelect() {
+				// This function will be called when the file input below is changed
+				let file = document.getElementById("fileInput").files[0];  // get a reference to the selected file
+
+				let reader = new FileReader(); // create a file reader
+
+				// Set an onload function to show the image in cropper once it has been loaded
+				reader.onload = function(event) {
+					let data = event.target.result; // the "data url" of the image
+					canvas.showImage(data); // hand this to cropper, it will be displayed
+					canvas.startCropping();
+				};
+
+				reader.readAsDataURL(file); // this loads the file as a data url calling the function above once done
+			}
+		</script>
+
+		<input type="file" name="" value="" id='fileInput' onchange="handleFileSelect()">
+		<input type="button" onclick="canvas.getCroppedImageSrc()" value="Crop">
+		<input type="button" onclick="canvas.restore()" value="Restore">
 
 	</body>
 </html>
