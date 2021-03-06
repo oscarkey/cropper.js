@@ -49,7 +49,7 @@ HTMLCanvasElement.prototype.getMouseCoords = function(event){
 
 class Canvas
 {
-	constructor(element, ratioX, ratioY)
+	constructor({element, ratioX, ratioY})
 	{
 		this.element = element;
 		this.image = undefined;
@@ -80,6 +80,7 @@ class Canvas
 			originalOverlayWidth: 0,
 			originalOverlayHeight: 0
 		};
+		this.start(this.ratioY / this.ratioX);
 
 	};
 
@@ -518,15 +519,18 @@ function main()
 		const cropperHeight = (parseInt(dimensions.height) == 0) ? 600 : 0.7 * parseInt(dimensions.height);
 		const cropperWidth = (parseInt(dimensions.width) == 0) ? 600 : 0.7 * parseInt(dimensions.width);
 
+		// Get the cropper dimension
 		const dimension = Math.max(100, Math.min(cropperHeight, cropperWidth));
 		const canvasElement = document.createElement('canvas');
 
 		const ratioX = croppers[i].dataset.ratiox || 1;
 		const ratioY = croppers[i].dataset.ratioy || 1;
 
-		canvasElement.width = dimension;
-		canvasElement.height = dimension;
-		canvasElement.style.border = '1px solid black';
+		canvasElement.width = dimension * Math.min(1, ratioX / ratioY);
+		canvasElement.height = dimension * Math.min(1, ratioY / ratioX);
+
+		// Base class and hidden
+		canvasElement.className = '_canvas';
 
 		const buttonContainer = document.createElement('div');
 
@@ -545,6 +549,12 @@ function main()
 		const labelContent = document.createElement('span');
 		const labelSpan = document.createElement('span');
 
+		const save = document.createElement('button');
+
+
+
+		const content = document.createElement('div');
+
 		// Input name
 		input.name = croppers[i].dataset.name || `croppedImage${i}`;
 		input.id = input.name;
@@ -557,9 +567,11 @@ function main()
 
 
 		// class names
+		content.className = 'cropper__content';
 		cropSpan.className = 'material-icons';
 		restoreSpan.className = 'material-icons';
 		labelSpan.className = 'material-icons';
+		save.className = '_cropper__save';
 
 		// Inner HTML
 		cropContent.innerHTML = 'Crop';
@@ -573,6 +585,8 @@ function main()
 		labelSpan.innerHTML = 'file_upload';
 
 
+		save.innerHTML = 'Save';
+
 		// Appending
 		label.append(labelSpan);
 		label.append(labelContent);
@@ -583,21 +597,27 @@ function main()
 		restore.append(restoreSpan);
 		restore.append(restoreContent);
 
-		// Appending all the elements to the main div
-		croppers[i].append(canvasElement);
-		croppers[i].append(buttonContainer);
-
 		buttonContainer.append(input);
 		buttonContainer.append(label);
 		buttonContainer.append(crop);
 		buttonContainer.append(restore);
 
+		// Appending all the elements to the main div
+		content.append(canvasElement);
+		content.append(buttonContainer);
+		content.append(save);
 
-		const canvas = new Canvas(canvasElement, ratioX, ratioY);
-		canvas.start(1);
+
+		croppers[i].append(content);
+
+
+		const canvas = new Canvas({element: canvasElement, ratioX: ratioX, ratioY:ratioY});
 
 		// Input event Listeners
 		input.onchange = () => {
+
+			canvasElement.style.display = 'block';
+			croppers[i].classList.toggle('show__canvas', true);
 			// this function will be called when the file input below is changed
 			let file = input.files[0];  // get a reference to the selected file
 
@@ -615,10 +635,19 @@ function main()
 
 		crop.onclick = () => {
 			canvas.getCroppedImageSrc();
+			croppers[i].classList.toggle('show__canvas', true);
 		}
 
 		restore.onclick = () => {
 			canvas.restore();
+			croppers[i].classList.toggle('show__canvas', true);
+		}
+
+		save.onclick = () => {
+			canvas.getCroppedImageSrc();
+			croppers[i].classList.toggle('show__canvas', false);
+			croppers[i].classList.toggle('show__image', true);
+
 		}
 	}
 }
